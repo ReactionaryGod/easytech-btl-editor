@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+
+# Game data never belongs in this repo
+*.btl
+*.btl.bak
+*.bak
+*.bin
+assets/
+
+# Editors / OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store

@@ -1,0 +1,28 @@
+name: Bug report
+description: Something in the editor is broken or a map saves wrongly
+labels: [bug]
+body:
+  - type: input
+    id: game
+    attributes:
+      label: Game and version
+      placeholder: World Conqueror 4 1.30.0
+    validations:
+      required: true
+  - type: input
+    id: map
+    attributes:
+      label: Map file
+      placeholder: stage10101.btl
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Error text or traceback
+      description: Tools › Resource import log, or the console output
+      render: text

@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+        python: ["3.10", "3.13"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Qt runtime libraries (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libegl1 libxkbcommon0 libfontconfig1 libglib2.0-0
+      - name: Install
+        run: python -m pip install -r requirements.txt
+      - name: Byte-compile
+        run: python -m compileall -q app.py wc4btl tests
+      - name: Format tests
+        run: python -m unittest discover -s tests -p "test_format.py" -v
+      - name: Import the UI headlessly
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -c "from PySide6.QtWidgets import QApplication; app = QApplication([]); from wc4btl.ui.mainwindow import MainWindow; MainWindow(); print('UI OK')"

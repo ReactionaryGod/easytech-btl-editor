@@ -1,0 +1,21 @@
+name: Support another EasyTech game
+description: Share .btl layout notes or sample maps for another title
+labels: [game-support]
+body:
+  - type: input
+    id: game
+    attributes:
+      label: Game and version
+      placeholder: European War 6 1.x
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: What you know about its .btl layout
+      description: Header fields, record sizes, differences from WC4, links to existing tools
+  - type: textarea
+    id: samples
+    attributes:
+      label: Sample maps
+      description: Attach a few small .btl files from your own copy of the game (zip them first).
