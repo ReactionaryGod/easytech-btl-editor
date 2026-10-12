@@ -16,6 +16,9 @@
 
 </div>
 
+> **By [ReactionaryGod](https://github.com/ReactionaryGod)**, author of **EModule**, the Android `.btl` editor. This is
+> its PC edition.
+
 EasyTech (World Conqueror, Glory of Generals, European War, Great Conqueror, …) stores every battle in `.btl`
 files: factions, terrain, cities, units, generals, reinforcements, events and weather, packed as binary data. This
 editor draws the map with the game's own art and lets you click a hex to edit what's on it.
@@ -108,9 +111,9 @@ the folder that contains `assets/`, or `assets/` itself. The editor reads `asset
 
 ## How it compares with EModule
 
-The design follows **EModule 0.1.3's BtlEditor**, an Android `.btl` editor. This is an independent desktop
-rewrite with no activation code or login. Its file handling was checked against every WC4 map, which surfaced
-several problems the original has:
+This is the PC edition of **EModule**'s BtlEditor, ReactionaryGod's Android `.btl` editor (version 0.1.3), without
+the activation code or login. Its file handling was checked against every WC4 map, which turned up several problems
+in the Android version:
 
 | Issue in EModule | Here |
 |---|---|
