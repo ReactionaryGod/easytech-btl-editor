@@ -5,7 +5,14 @@ import traceback
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QAction, QActionGroup, QKeySequence
 from PySide6.QtWidgets import (QSizePolicy, QApplication, QDockWidget, QFileDialog, QLabel, QLineEdit, QMainWindow, QMenu,
-                               QMessageBox, QToolButton, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
+                               QMessageBox, QStackedWidget, QToolButton, QTreeWidget, QTreeWidgetItem, QVBoxLayout,
+                               QWidget)
+
+from gog3btl.gamedata import Gog3Game, is_gog3_assets
+from gog3btl.model import DocError as Gog3DocError, Gog3Doc
+from gog3btl.ui.datapanel import Gog3DataPanel
+from gog3btl.ui.hexpanel import Gog3HexPanel
+from gog3btl.ui.toolpanel import Gog3ToolPanel
 
 from ..gamedata import GameData, find_assets
 from ..model import BtlDoc, DocError, NO_OWNER
@@ -20,6 +27,9 @@ from .toolpanel import ToolPanel
 CATEGORIES = [("Conquest", "conquest"), ("Campaign", "stage"), ("General stage", "generalstage_"),
               ("Frontier", "frontier"), ("Invade corps", "invadecorps"), ("War zone", "warzone"),
               ("Event", "event"), ("Legend", "legend"), ("Other", "")]
+
+GOG3_CATEGORIES = [("Campaign", "campaign"), ("Challenge", "challenge"), ("United campaigns", "united"),
+                   ("Elite battles", "elite"), ("Conquest", "conquest"), ("Corps", "corps"), ("Other", "")]
 
 LAYER_NAMES = [("terrain", "Terrain sprites"), ("owners", "Ownership colours"), ("borders", "Borders"),
                ("grid", "Hex grid"), ("cities", "Cities"), ("names", "City names / HP"), ("troops", "Troops"),
@@ -59,12 +69,18 @@ class MainWindow(QMainWindow):
         left = QWidget(); ll = QVBoxLayout(left); ll.setContentsMargins(2, 2, 2, 2)
         ll.addWidget(self.tree_filter); ll.addWidget(self.tree)
         self.maps_dock = self._dock("Maps", left, Qt.LeftDockWidgetArea)
-        self.tools = ToolPanel(self)
-        self.tools_dock = self._dock("Tools", self.tools, Qt.LeftDockWidgetArea)
-        self.hexpanel = HexPanel(self)
-        self.hex_dock = self._dock("Hex", self.hexpanel, Qt.RightDockWidgetArea)
-        self.datapanel = DataPanel(self)
-        self.data_dock = self._dock("Data", self.datapanel, Qt.RightDockWidgetArea)
+        # every dock holds the World Conqueror 4 panel and the Glory of Generals 3 panel; set_kind() switches
+        self.kind = "wc4"
+        self.panels = {"wc4": (ToolPanel(self), HexPanel(self), DataPanel(self)),
+                       "gog3": (Gog3ToolPanel(self), Gog3HexPanel(self, self.ctx), Gog3DataPanel(self, self.ctx))}
+        self.stacks = [QStackedWidget() for _ in range(3)]
+        for kind in ("wc4", "gog3"):
+            for stack, panel in zip(self.stacks, self.panels[kind]):
+                stack.addWidget(panel)
+        self.tools, self.hexpanel, self.datapanel = self.panels["wc4"]
+        self.tools_dock = self._dock("Tools", self.stacks[0], Qt.LeftDockWidgetArea)
+        self.hex_dock = self._dock("Hex", self.stacks[1], Qt.RightDockWidgetArea)
+        self.data_dock = self._dock("Data", self.stacks[2], Qt.RightDockWidgetArea)
         self.tabifyDockWidget(self.hex_dock, self.data_dock)
         self.hex_dock.raise_()
 
@@ -197,10 +213,14 @@ class MainWindow(QMainWindow):
             return
         QApplication.setOverrideCursor(Qt.WaitCursor)
         try:
-            self.game = GameData(path, self.opts["lang"])
+            if is_gog3_assets(assets):
+                self.game = Gog3Game(path, self.opts["lang"])
+            else:
+                self.game = GameData(path, self.opts["lang"])
             self.images = ImageCache(self.game)
         finally:
             QApplication.restoreOverrideCursor()
+        self.set_kind(getattr(self.game, "KIND", "wc4"))
         self.st.setValue("work", path)
         self.doc = None
         self.view.set_document(None, self.game, self.images)
@@ -217,6 +237,8 @@ class MainWindow(QMainWindow):
             self.open_map(last)
 
     def fill_tree(self):
+        if self.kind == "gog3":
+            return self.fill_tree_gog3()
         self.tree.clear()
         groups = {}
         for title, prefix in CATEGORIES:
@@ -243,6 +265,50 @@ class MainWindow(QMainWindow):
             groups[prefix].addChild(child)
         for it in groups.values():
             it.setText(0, "%s (%d)" % (it.text(0).split(" (")[0], it.childCount()))
+
+    def fill_tree_gog3(self):
+        self.tree.clear()
+        groups = {}
+        for title, key in GOG3_CATEGORIES:
+            it = QTreeWidgetItem([title])
+            it.setFlags(it.flags() & ~Qt.ItemIsSelectable)
+            self.tree.addTopLevelItem(it)
+            groups[key] = it
+        stage = os.path.join(self.game.assets, "stage") if self.game.assets else None
+        for fn in self.game.stage_files():
+            low = fn.lower()
+            num = low[5:-4] if low.startswith("stage") else ""
+            if num.isdigit():
+                n = int(num)
+                if n < 20000:
+                    key = "challenge" if 11300 <= n < 11500 else "campaign"
+                else:
+                    key = "united" if n < 30000 else "elite"
+            elif low.startswith("conquest"):
+                key = "conquest"
+            elif low.startswith("corps") or "\u519b\u56e2" in fn:
+                key = "corps"
+            else:
+                key = ""
+            title = self.game.stage_title(fn)
+            child = QTreeWidgetItem(["%s  -  %s" % (fn, title) if title else fn])
+            child.setData(0, Qt.UserRole, os.path.join(stage, fn))
+            groups[key].addChild(child)
+        for it in groups.values():
+            it.setText(0, "%s (%d)" % (it.text(0).split(" (")[0], it.childCount()))
+
+    def set_kind(self, kind):
+        """Switch panels and tools between World Conqueror 4 ("wc4") and Glory of Generals 3 ("gog3")."""
+        if kind == self.kind:
+            return
+        if self.view.mode != MODE_SELECT:
+            self.set_mode(MODE_SELECT)
+        self.kind = kind
+        self.tools, self.hexpanel, self.datapanel = self.panels[kind]
+        for stack, panel in zip(self.stacks, self.panels[kind]):
+            stack.setCurrentWidget(panel)
+        for m in (MODE_PROVINCE, MODE_CROP):
+            self.mode_actions[m].setEnabled(kind == "wc4")
 
     def filter_tree(self, text):
         words = text.lower().split()
@@ -273,8 +339,13 @@ class MainWindow(QMainWindow):
             return
         QApplication.setOverrideCursor(Qt.WaitCursor)
         try:
-            doc = BtlDoc(path, self.game)
-        except (DocError, ValueError, OSError) as e:
+            with open(path, "rb") as fh:
+                head = fh.read(4)
+            kind = "wc4" if len(head) == 4 and int.from_bytes(head, "little") in (1, 2, 3) else "gog3"
+            game = self.game if getattr(self.game, "KIND", "wc4") == kind else (
+                Gog3Game(None) if kind == "gog3" else GameData(None))
+            doc = Gog3Doc(path, game) if kind == "gog3" else BtlDoc(path, game)
+        except (DocError, Gog3DocError, ValueError, OSError) as e:
             QApplication.restoreOverrideCursor()
             QMessageBox.critical(self, "Cannot open map", "%s\n\n%s" % (path, e))
             return
@@ -282,6 +353,10 @@ class MainWindow(QMainWindow):
             QApplication.restoreOverrideCursor()
             QMessageBox.critical(self, "Cannot open map", traceback.format_exc())
             return
+        if game is not self.game:
+            self.game = game
+            self.images = ImageCache(game)
+        self.set_kind(kind)
         self.doc = doc
         self.view.set_document(doc, self.game, self.images)
         QApplication.restoreOverrideCursor()
@@ -290,6 +365,13 @@ class MainWindow(QMainWindow):
         self.datapanel.reload()
         self.st.setValue("last_map", path)
         self.update_title()
+        if kind == "gog3":
+            self.statusBar().showMessage(
+                "Opened %s (Glory of Generals 3): %d x %d hexes, %d factions, %d areas, %d armies%s" % (
+                    os.path.basename(path), doc.W, doc.H, len(doc.factions), len(doc.area_at),
+                    len(doc.b.get("armies", {}).get("list", [])),
+                    "" if game.assets else "  - set the GoG3 game folder for names and art"), 8000)
+            return
         b = doc.btl
         self.statusBar().showMessage("Opened %s: v%d, %d x %d hexes, %s, %d factions, %d cities, %d troops" % (
             os.path.basename(path), b.version, doc.W, doc.H, "world-map terrain" if doc.world else "own terrain",
@@ -397,6 +479,8 @@ class MainWindow(QMainWindow):
         d = self.doc
         if not d:
             return
+        if self.kind == "gog3":
+            return self.hover_gog3(i)
         x, y = d.xy(i)
         t = d.terrain(i)
         parts = ["(%d, %d)" % (x, y), "hex id %d" % d.file_hex(i), self.game.terrain_name(t["terrain"])]
@@ -417,12 +501,44 @@ class MainWindow(QMainWindow):
             parts.append(s)
         self.status.setText("   |   ".join(parts))
 
+    def hover_gog3(self, i):
+        d, g = self.doc, self.game
+        x, y = d.xy(i)
+        parts = ["(%d, %d)" % (x, y), "hex %d" % i, g.terrain_type_name(d.terrain_type(i))]
+        if d.is_disabled(i):
+            parts.append("disabled")
+        a = d.area_at.get(i)
+        if a:
+            s = "area"
+            if a.get("name"):
+                s += " " + g.city_name(a["name"])
+            if "building" in a:
+                info = a["building"].get("info", {})
+                s += " [%s, %s]" % (g.building_name(info.get("building", 0)), d.faction_label(info.get("owner", 0)))
+            if "fortification" in a:
+                s += " " + g.fortification_name(a["fortification"].get("type", 0))
+            parts.append(s)
+        if i in d.key_at:
+            parts.append("key area")
+        u = d.army_at.get(i)
+        if u:
+            info = u["info"]
+            s = "army #%d %s x%d, %s" % (info["serial"], g.army_name(info["army"]), info["number"],
+                                         d.faction_label(info["faction"]))
+            if "general" in u:
+                s += " with " + g.general_name(u["general"].get("id", 0))
+            parts.append(s)
+        self.status.setText("   |   ".join(parts))
+
     def set_layer(self, key, on):
         self.view.layers[key] = on
         self.st.setValue("layer_" + key, on)
         self.view.viewport().update()
 
     def set_mode(self, mode):
+        if self.kind == "gog3" and mode in (MODE_PROVINCE, MODE_CROP):
+            self.mode_actions[self.view.mode].setChecked(True)
+            return
         if mode == MODE_PROVINCE and self.view.province_anchor is None:
             i = self.view.selected
             if i is None or not self.doc:
@@ -512,9 +628,10 @@ class MainWindow(QMainWindow):
         self.datapanel.reload()
 
     def about(self):
-        QMessageBox.about(self, "About", "<b>EasyTech BTL Editor</b> 0.1.0<br>Visual editor for World Conqueror 4 "
-                          "(v1.30.0) .btl battle maps, modelled on EModule's BtlEditor.<br>"
+        QMessageBox.about(self, "About", "<b>EasyTech BTL Editor</b> 0.2.0<br>Visual editor for EasyTech .btl "
+                          "battle maps: World Conqueror 4 (v1.30.0, modelled on EModule's BtlEditor) and Glory of "
+                          "Generals 3 (FlatBuffers maps).<br>"
                           "<a href='https://github.com/ReactionaryGod/easytech-btl-editor'>"
                           "github.com/ReactionaryGod/easytech-btl-editor</a> (MIT licence)<br><br>"
-                          "Loads and saves every shipped map byte-for-byte; keeps sections EModule drops "
-                          "(header-27 records and v3 trailing bytes).")
+                          "WC4: every shipped map loads and saves byte-for-byte. GoG3: every shipped map rebuilds "
+                          "and passes the game's own verifier.")

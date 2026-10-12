@@ -9,7 +9,10 @@ app = QApplication(sys.argv)
 if os.environ["QT_QPA_PLATFORM"] == "offscreen":
     from PySide6.QtGui import QFont
     app.setFont(QFont("Segoe UI", 9))  # the offscreen platform otherwise picks the first font file it finds
-QSettings("WC4Modding", "BtlEditorPC").clear()
+import tempfile
+from wc4btl.ui import common
+_ini = os.path.join(tempfile.mkdtemp(), "settings.ini")
+common.settings = lambda: QSettings(_ini, QSettings.IniFormat)     # never touch the user's real settings
 from wc4btl.ui.mainwindow import MainWindow
 from wc4btl.ui.mapview import MODE_MULTI, MODE_CROP, MODE_SELECT
 OUT = sys.argv[1]

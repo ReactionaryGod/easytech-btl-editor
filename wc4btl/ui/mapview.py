@@ -124,6 +124,9 @@ class MapView(QGraphicsView):
         d = self.doc
         if d is None:
             return
+        if getattr(d, "KIND", "wc4") == "gog3":
+            from gog3btl.ui.painter import paint
+            return paint(self, p, rect)
         lod = p.worldTransform().m11()
         c0, c1, r0, r1 = self.visible_range(rect)
         W = d.W

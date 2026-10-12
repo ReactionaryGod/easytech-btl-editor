@@ -23,9 +23,9 @@ jobs:
       - name: Install
         run: python -m pip install -r requirements.txt
       - name: Byte-compile
-        run: python -m compileall -q app.py wc4btl tests
+        run: python -m compileall -q app.py wc4btl gog3btl tests
       - name: Format tests
-        run: python -m unittest discover -s tests -p "test_format.py" -v
+        run: python -m unittest discover -s tests -p "test_*format.py" -v
       - name: Import the UI headlessly
         env:
           QT_QPA_PLATFORM: offscreen
