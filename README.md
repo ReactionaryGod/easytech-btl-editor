@@ -38,6 +38,7 @@ editor draws the map with the game's own art and lets you click a hex to edit wh
 - 🎨 **Real game rendering:** terrain and plant sprites, ownership colours and borders, cities and capitals, flags and general portraits, read from the game's own atlases. Each layer can be switched off.
 - 🖱️ **Hex panel:** click a hex to edit its land, city, city HP, troop, mine, reinforcements, air raids and capital or deploy slots. Add, copy, paste and delete on every tab.
 - 🪖 **Searchable pickers** for army types, generals and countries. Picking a general fills in rank, quality and skill levels.
+- 🎭 **Elite skins:** pick a troop's skin by name (e.g. King Tiger → Cretaceous, Hawkeye Force → The White Death); skinned troops get an **S1** badge on the map.
 - ✋ **Drag a troop** onto another hex to move it.
 - 🧰 **Multi-select:** create or delete troops, cities and mines, set the owner or province, or set any troop or city field across many hexes at once.
 - 🖌️ **Province painting:** paint which hexes belong to a city, then apply.
@@ -122,6 +123,7 @@ in the Android version:
 | Every faction id rewritten to its list position | Ids never renumbered |
 | Mine HP read as an i32, absorbing the army code | `u16 hex, owner, level, HP, army (33/34), pad` |
 | Schemes keyed by target hex, duplicates lost | Kept as a list |
+| Troop byte 47 (elite skin) hidden inside the 4-byte "hold min distance" int, so skin 1 shows as 16777216 | Own **Elite skin** field with the skin's in-game name |
 | Every section re-sorted into hex order on save | Original record order kept |
 
 Loading and saving any shipped map without edits gives a **byte-identical file**.
@@ -141,6 +143,10 @@ header → factions → terrain (own-terrain maps only) → province u16[n] → 
 - Maps with `map_index ≠ 0` sit on the 148 × 54 world grid from `world.bin`. Their hex references are world hex ids
   `(y + crop_y) × 148 + (x + crop_x)`.
 - Owner bytes hold faction **indexes**. Every other faction reference holds faction **ids**.
+- Troop byte 47 is the **elite skin** index. It shows when `config/def_motion.xml` has an `<Anim> skin_<n>` entry for
+  the unit; names come from `elite_name_<code>_S<n>` and bonuses from `EliteSkinSettings.json`. Only troops placed in
+  the map wear a skin: reinforcements and recruits spawn with the default look. Shipped maps use it only in
+  conquest9 (1980 challenge).
 - Hexes are flat-topped, with odd columns shifted down half a row (odd-q).
 
 ## Project layout

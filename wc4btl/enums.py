@@ -16,7 +16,7 @@ AI_CONTROL = {0: "Player side", 1: "AI"}
 GENERAL_QUALITY = {0: "None", 1: "Bronze", 2: "Silver", 3: "Gold", 4: "Platinum"}
 
 # per record type: key -> hint.  Hints: ("enum", dict) | "faction_id" | "army" | "general" | "hex" | "country"
-#                  | "victory" | "ro" (read only) | "medal" | "ribbon" | "building" | "airdefence"
+#                  | "victory" | "ro" (read only) | "medal" | "ribbon" | "building" | "airdefence" | "skin"
 HINTS = {
     "Troop": {"army": "army", "formation": ("enum", FORMATION), "facing": ("enum", FACING),
               "stronghold": ("enum", STRONGHOLD), "ai": ("enum", AI_ORDER), "transport": ("enum", TRANSPORT),
@@ -24,7 +24,7 @@ HINTS = {
               "quality": ("enum", GENERAL_QUALITY), "move_target": "hex",
               "medal1": "medal", "medal2": "medal", "medal3": "medal",
               "v3_medal1": "medal", "v3_medal2": "medal", "v3_medal3": "medal",
-              "ribbon1": "ribbon", "ribbon2": "ribbon", "ribbon3": "ribbon"},
+              "ribbon1": "ribbon", "ribbon2": "ribbon", "ribbon3": "ribbon", "skin": "skin"},
     "Reinforcement": {"army": "army", "formation": ("enum", FORMATION), "ai": ("enum", AI_ORDER),
                       "transport": ("enum", TRANSPORT), "general": "general", "country": "faction_id",
                       "hex": "ro", "quality": ("enum", GENERAL_QUALITY)},

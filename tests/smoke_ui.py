@@ -46,5 +46,21 @@ for fn in ("stage10101.btl", "conquest1.btl", "event10201.btl", "warzone101.btl"
     w.start_province_mode(next(iter(d.city_at))); w.tools.apply_province(); app.processEvents()
     while d.undo(): pass
     w.doc.dirty = False
+# elite skins: conquest9 (1980 challenge) has 30 troops with skin 1 (troop byte 47)
+w.open_map(os.path.join(w.game.assets, "stage", "conquest9.btl")); app.processEvents()
+d = w.doc
+skinned = sorted(i for i, t in d.troop_at.items() if t["skin"])
+print("conquest9 skinned troops:", len(skinned), sorted({(d.troop_at[i]["army"], w.game.skin_name(d.troop_at[i]["army"], 1)) for i in skinned}))
+i = next(i for i in skinned if d.troop_at[i]["army"] == 55)
+w.view.resetTransform(); w.view.scale(0.7, 0.7); w.view.center_on_hex(i)
+w.view.selected = i; w.on_hex_clicked(i); w.hexpanel.setCurrentIndex(3); app.processEvents()
+w.grab().save(os.path.join(OUT, "skin_conquest9.png"))
+before = d.snapshot()
+d.begin(); d.troop_at[i]["skin"] = 0; w.on_doc_changed("skin off")
+assert d.snapshot() != before
+while d.undo():
+    pass
+assert d.snapshot() == before
+w.doc.dirty = False
 print("errors:", len(errors))
 for e in errors[:5]: print(e)

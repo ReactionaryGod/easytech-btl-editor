@@ -70,6 +70,18 @@ class FormatTest(unittest.TestCase):
         self.assertEqual(b1.reinf_type().size, 80)
         self.assertEqual(make(2, True).reinf_type().size, 104)
 
+    def test_troop_skin_is_byte_47(self):
+        for version in (1, 3):
+            b = make(version, True)
+            t = b.troops[1]
+            t["hold_dist"], t["skin"] = 3, 1
+            data = b.serialize()
+            again = BtlFile.parse(data)
+            self.assertEqual((again.troops[1]["hold_dist"], again.troops[1]["skin"]), (3, 1))
+            rt = b.troop_type()
+            raw = rt.pack(again.troops[1])
+            self.assertEqual(raw[44:48], bytes([3, 0, 0, 1]))
+
     def test_values_are_clamped(self):
         r = FACTION.new()
         r["r"] = 999

@@ -14,7 +14,7 @@ from . import dialogs
 UNKNOWN_RE = re.compile(r"^(u\d+|x\d+|t15|h29|h30)$")
 
 GROUPS = {
-    "Troop": [("Unit", ["army", "level", "formation", "facing", "hp_bonus", "hp", "hp_max", "exp", "mobility",
+    "Troop": [("Unit", ["army", "level", "skin", "formation", "facing", "hp_bonus", "hp", "hp_max", "exp", "mobility",
                         "build_rounds"]),
               ("General", ["general", "rank", "quality", "skill1", "skill2", "skill3", "skill4", "skill5",
                            "medal1", "medal2", "medal3", "v3_medal1", "v3_medal2", "v3_medal3",
@@ -141,6 +141,8 @@ class RecordForm(QWidget):
             return
         self.ctx.doc.begin(tag=(id(self.rec), key))
         self.rec[key] = value
+        if key in ("army", "skin") and "skin" in self.editors:
+            self._fill_skins()
         if self.after_set:
             self.after_set(self.rec, key)
         self.edited.emit(key)
@@ -261,6 +263,18 @@ class RecordForm(QWidget):
             go.clicked.connect(lambda: self._go(self.rec[key]))
             hl.addWidget(s); hl.addWidget(lab, 1); hl.addWidget(go)
             return box
+        if h == "skin":
+            box = QWidget(); vl = QVBoxLayout(box); vl.setContentsMargins(0, 0, 0, 0)
+            cb = QComboBox()
+            cb.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
+            cb.setMinimumContentsLength(14)
+            note = QLabel(); note.setWordWrap(True); note.setStyleSheet("color: #777;")
+            self._skin_widgets = (cb, note)
+            self.editors[key] = (cb, lambda v: self._fill_skins())
+            self._fill_skins()
+            cb.currentIndexChanged.connect(lambda k: self._set(key, cb.itemData(k)) if k >= 0 else None)
+            vl.addWidget(cb); vl.addWidget(note)
+            return box
         if h in ("medal", "ribbon"):
             box = QWidget(); hl = QHBoxLayout(box); hl.setContentsMargins(0, 0, 0, 0)
             s = self._spin(key)
@@ -277,6 +291,28 @@ class RecordForm(QWidget):
             hl.addWidget(s); hl.addWidget(icon); hl.addWidget(text, 1)
             return box
         return self._spin(key)
+
+    def _fill_skins(self):
+        """Skin choices for the troop's current army (EliteSkinSettings + def_motion.xml skin_<n> entries)."""
+        cb, note = self._skin_widgets
+        game, rec = self.ctx.game, self.rec
+        cur = rec["skin"]
+        items = [(0, "0 - Default look")] + (game.skins_for(rec["army"]) if game else [])
+        if cur not in [v for v, _ in items]:
+            items.append((cur, "%d - %s (not defined for this unit)" % (cur, game.skin_name(rec["army"], cur) if game else cur)))
+        cb.blockSignals(True)
+        cb.clear()
+        for v, text in items:
+            cb.addItem(text, v)
+        cb.setCurrentIndex(cb.findData(cur))
+        cb.blockSignals(False)
+        if len(items) == 1:
+            note.setText("This unit has no skins.")
+        elif cur and game and not game.skin_has_sprite(rec["army"], cur):
+            note.setText("No \"skin_%d\" sprite in def_motion.xml for this unit: the game shows the default look." % cur)
+        else:
+            note.setText("Only troops placed in the map wear a skin; reinforcements and recruits always spawn "
+                         "with the default look.")
 
     def _ro_text(self, key):
         v = self.rec[key]

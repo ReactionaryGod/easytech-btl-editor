@@ -353,6 +353,16 @@ class MapView(QGraphicsView):
             f4 = QFont(fnt); f4.setPixelSize(17); p.setFont(f4)
             p.drawText(r, Qt.AlignCenter, str(lv))
             p.setFont(fnt)
+        # elite skin (troop byte 47)
+        sk = t.get("skin", 0)
+        if sk:
+            r = QRectF(box.right() - 30, box.bottom() - 20, 34, 22)
+            p.setBrush(QColor("#8e44ad")); p.setPen(QPen(QColor("#f5d76e"), 2))
+            p.drawRoundedRect(r, 6, 6)
+            p.setPen(QColor("white"))
+            f5 = QFont(fnt); f5.setPixelSize(14); p.setFont(f5)
+            p.drawText(r, Qt.AlignCenter, "S%d" % sk)
+            p.setFont(fnt)
         # morale
         m = t["morale"]
         if m:

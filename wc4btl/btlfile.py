@@ -235,7 +235,11 @@ _TROOP_BASE = [
     ("morale_rounds", "B", "士气持续回合", "Morale rounds"),
     ("trigger", "B", "触发事件", "Trigger event"),
     ("shield", "B", "盾牌标志", "Shield / hold flag"),
-    ("hold_dist", "i", "固守最短距离", "Hold min distance"),
+    # EModule reads 44-47 as one int "hold min distance"; byte 47 is really the elite skin index (the map loader reads
+    # troop byte 0x2f into army init; drawing looks up "<Anim> skin_<n>" in def_motion.xml).  45-46 are 0 in every map.
+    ("hold_dist", "H", "固守最短距离", "Hold min distance"),
+    _u(46),
+    ("skin", "B", "皮肤", "Elite skin (0 = default look)"),
 ]
 TROOP1 = RecordType("Troop", _TROOP_BASE)
 TROOP3 = RecordType("Troop", _TROOP_BASE + [

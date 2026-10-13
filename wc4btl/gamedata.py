@@ -75,6 +75,9 @@ class GameData:
         self.armies = []            # ArmySettings rows
         self.army_by_id = {}
         self.army_by_code = {}      # code -> rows sorted by Id
+        self.skin_effects = {}      # (army code, skin index) -> EliteSkinSettings Effect
+        self.elite_code = {}        # ArmySettings Id -> elite name code (EliteArmySettings Id // 100)
+        self.motion_skins = {}      # Anim name -> skin indexes with a "<Anim> skin_<n>" entry in def_motion.xml
         self.generals = []
         self.general_by_id = {}
         self.skills = {}
@@ -124,6 +127,11 @@ class GameData:
         self._try("AirDefenceSettings.json", lambda: self.air_defence.update({r["Id"]: r for r in self._json("AirDefenceSettings.json")}))
         self._try("stringtable_%s.ini" % self.lang, self._load_strings)
         self._try("stringtable_cn.ini", lambda: self.strings_cn.update(load_stringtable(self._p("stringtable_cn.ini"))))
+        self._try("EliteSkinSettings.json", lambda: self.skin_effects.update(
+            {(r["Army"], r["Index"]): r.get("Effect", 0) for r in self._json("EliteSkinSettings.json")}))
+        self._try("EliteArmySettings.json", lambda: self.elite_code.update(
+            {r["ArmyId"]: r["Id"] // 100 for r in self._json("EliteArmySettings.json")}))
+        self._try("config/def_motion.xml", self._load_motion_skins)
         self._try("config/def_mapterrain.xml", self._load_mapterrain)
         self._try("config/def_map.xml", self._load_maps)
         self._try("world map (def_map file)", self._load_world)
@@ -233,6 +241,40 @@ class GameData:
     def is_elite(self, code):
         r = self.army_row(code)
         return bool(r and r.get("Elite"))
+
+    def _load_motion_skins(self):
+        with open(self._p("config", "def_motion.xml"), encoding="utf-8-sig", errors="replace") as fh:
+            for anim, n in re.findall(r'<Unit\s+name="([^"]*?) skin_(\d+)"', fh.read()):
+                self.motion_skins.setdefault(anim, set()).add(int(n))
+
+    def skin_name(self, code, n):
+        """Name of an elite skin, e.g. King Tiger (army 55) skin 1 -> "Cretaceous"."""
+        if n <= 0:
+            return "Default look"
+        r = self.army_row(code)
+        ec = self.elite_code.get(r["Id"]) if r else None
+        name = self.text("elite_name_%d_S%d" % (ec, n)) if ec else None
+        return name or "Skin %d" % n
+
+    def skin_has_sprite(self, code, n):
+        r = self.army_row(code)
+        return bool(r) and n in self.motion_skins.get(r.get("Anim"), ())
+
+    def skins_for(self, code):
+        """[(index, label)] for a unit's skins: those in EliteSkinSettings or with a def_motion.xml entry."""
+        r = self.army_row(code)
+        idx = {n for (a, n) in self.skin_effects if a == code}
+        if r:
+            idx |= self.motion_skins.get(r.get("Anim"), set())
+        out = []
+        for n in sorted(idx):
+            notes = []
+            if (code, n) in self.skin_effects:
+                notes.append("effect %s" % self.skin_effects[(code, n)])
+            if not self.skin_has_sprite(code, n):
+                notes.append("no def_motion sprite")
+            out.append((n, "%d - %s%s" % (n, self.skin_name(code, n), " (%s)" % ", ".join(notes) if notes else "")))
+        return out
 
     def army_codes(self):
         return sorted(self.army_by_code)

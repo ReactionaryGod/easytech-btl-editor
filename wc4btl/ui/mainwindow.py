@@ -498,6 +498,8 @@ class MainWindow(QMainWindow):
             s = "troop %s lv%d x%d" % (self.game.army_name(t["army"], t["level"] or 1), t["level"], t["formation"])
             if t["general"] > 0:
                 s += " with " + self.game.general_name(t["general"])
+            if t["skin"]:
+                s += ", skin " + self.game.skin_name(t["army"], t["skin"])
             parts.append(s)
         self.status.setText("   |   ".join(parts))
 
@@ -628,7 +630,7 @@ class MainWindow(QMainWindow):
         self.datapanel.reload()
 
     def about(self):
-        QMessageBox.about(self, "About", "<b>EasyTech BTL Editor</b> 0.2.0<br>Visual editor for EasyTech .btl "
+        QMessageBox.about(self, "About", "<b>EasyTech BTL Editor</b> 0.2.1<br>Visual editor for EasyTech .btl "
                           "battle maps: World Conqueror 4 (v1.30.0, modelled on EModule's BtlEditor) and Glory of "
                           "Generals 3 (FlatBuffers maps).<br>"
                           "<a href='https://github.com/ReactionaryGod/easytech-btl-editor'>"

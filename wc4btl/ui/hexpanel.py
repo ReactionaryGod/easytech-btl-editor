@@ -201,7 +201,7 @@ class HexPanel(QTabWidget):
         t["hp"] = t["hp_max"] = hp
 
     def _troop_after_set(self, rec, key):
-        if key in ("army", "level", "general", "formation"):
+        if key in ("army", "level", "general", "formation", "skin"):
             self.main.view.viewport().update()
 
     def troop_summary(self, t):
@@ -220,6 +220,10 @@ class HexPanel(QTabWidget):
             lab.setText("Unknown army code %d" % t["army"])
         if t["general"] > 0:
             lab.setText(lab.text() + "<br>General: <b>%s</b> (id %d)" % (g.general_name(t["general"]), t["general"]))
+        if t["skin"]:
+            lab.setText(lab.text() + "<br>Skin: <b>%s</b> (%d)%s" % (
+                g.skin_name(t["army"], t["skin"]), t["skin"],
+                "" if g.skin_has_sprite(t["army"], t["skin"]) else ", no sprite: shows the default look"))
         return lab
 
     # ------------------------------------------------------------------ mine / capital
